@@ -17,6 +17,7 @@
 package org.opencord.igmpproxy;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 import static org.onlab.junit.TestTools.assertAfter;
 
 import java.util.List;
@@ -26,6 +27,7 @@ import org.junit.Before;
 import org.junit.Test;
 import org.onlab.junit.TestUtils;
 import org.onlab.packet.Ethernet;
+import org.onlab.packet.Ip4Address;
 import org.onosproject.core.CoreServiceAdapter;
 import org.onosproject.net.flow.FlowRuleServiceAdapter;
 import org.onosproject.net.flowobjective.FlowObjectiveServiceAdapter;
@@ -80,30 +82,25 @@ public class IgmpStatisticsTest extends IgmpManagerBase {
 
     //Test Igmp Statistics.
     @Test
-    public void testIgmpStatistics() throws InterruptedException {
+    public void testIgmpQueryStatistics() throws InterruptedException {
         igmpManager.networkConfig = new TestNetworkConfigRegistry(false);
         igmpManager.activate();
-        //IGMPv3 Join
-        Ethernet igmpv3MembershipReportPkt = IgmpSender.getInstance().buildIgmpV3Join(GROUP_IP, SOURCE_IP_OF_A);
-        sendPacket(igmpv3MembershipReportPkt, true);
+        //IGMPV2Query
+        Ethernet igmpv3MembershipQueryPkt = IgmpSender.getInstance().buildIgmpV3Query(GROUP_IP, SOURCE_IP_OF_A);
+        sendPacket(igmpv3MembershipQueryPkt, true);
         synchronized (savedPackets) {
             savedPackets.wait(WAIT_TIMEOUT);
         }
-        //Leave
-        Ethernet igmpv3LeavePkt = IgmpSender.getInstance().buildIgmpV3Leave(GROUP_IP, SOURCE_IP_OF_A);
-        sendPacket(igmpv3LeavePkt, true);
+        Ethernet igmpv3MembershipQueryPkt1 = IgmpSender.getInstance().buildIgmpV3Query(Ip4Address.valueOf(0), SOURCE_IP_OF_A);
+        sendPacket(igmpv3MembershipQueryPkt1, true);
         synchronized (savedPackets) {
             savedPackets.wait(WAIT_TIMEOUT);
         }
 
-        assertAfter(WAIT_TIMEOUT, WAIT_TIMEOUT * 2, () ->
-            assertEquals((long) 2, igmpStatisticsManager.getIgmpStats().getTotalMsgReceived().longValue()));
-        assertEquals((long) 1, igmpStatisticsManager.getIgmpStats().getIgmpJoinReq().longValue());
-        assertEquals((long) 2, igmpStatisticsManager.getIgmpStats().getIgmpv3MembershipReport().longValue());
-        assertEquals((long) 1, igmpStatisticsManager.getIgmpStats().getIgmpSuccessJoinRejoinReq().longValue());
-
-        assertEquals((long) 1, igmpStatisticsManager.getIgmpStats().getIgmpLeaveReq().longValue());
-        assertEquals((long) 2, igmpStatisticsManager.getIgmpStats().getIgmpMsgReceived().longValue());
+       assertTrue(igmpStatisticsManager.getIgmpStats()
+                .getIgmpGrpAndSrcSpecificMembershipQuery().longValue() > 1);
+        assertEquals(igmpStatisticsManager.getIgmpStats()
+                .getIgmpGeneralMembershipQuery().longValue() , 1);
 
     }
 
